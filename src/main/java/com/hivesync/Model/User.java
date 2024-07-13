@@ -1,4 +1,5 @@
 package com.hivesync.Model;
+
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -58,7 +59,14 @@ public class User {
 
     private String lastIpAddress;
 
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
     private boolean accountNonLocked = true;
-
     
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private boolean accountNonExpired = true;
+    
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
+    private boolean credentialsNonExpired = true;
+
+    private boolean enabled = true;
 }

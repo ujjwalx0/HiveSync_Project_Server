@@ -5,7 +5,6 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,8 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hivesync.Model.JwtResponse;
-import com.hivesync.Model.LoginRequestDto;
-import com.hivesync.Model.User;
+import com.hivesync.Model.UserLoginDto;
+import com.hivesync.Model.UserRegistrationDto;
 import com.hivesync.Security.JwtTokenUtil;
 import com.hivesync.Service.UserService;
 
@@ -26,10 +25,6 @@ public class AuthController {
 
     @Autowired
     @Lazy
-    private AuthenticationManager authenticationManager;
-
-    @Autowired
-    @Lazy
     private JwtTokenUtil jwtTokenUtil;
 
     @Autowired
@@ -37,41 +32,42 @@ public class AuthController {
     private UserService userService;
 
     @PostMapping("/register")
-    public String register(@RequestBody User user) {
-        logger.debug("Attempting to register user: {}", user.getUsername());
+    public ResponseEntity<?> register(@RequestBody UserRegistrationDto userRegistrationDto) {
+        logger.debug("Attempting to register user: {}", userRegistrationDto.getUsername());
 
-        if (userService.usernameExists(user.getUsername())) {
-            logger.debug("Username already exists: {}", user.getUsername());
-            return "Username already exists";
+        if (userService.usernameExists(userRegistrationDto.getUsername())) {
+            logger.debug("Username already exists: {}", userRegistrationDto.getUsername());
+            return ResponseEntity.status(409).body("Username already exists");
         }
 
-        if (userService.emailExists(user.getEmail())) {
-            logger.debug("Email already exists: {}", user.getEmail());
-            return "Email already exists";
+        if (userService.emailExists(userRegistrationDto.getEmail())) {
+            logger.debug("Email already exists: {}", userRegistrationDto.getEmail());
+            return ResponseEntity.status(409).body("Email already exists");
         }
 
-        userService.save(user);
-        logger.debug("User registered successfully: {}", user.getUsername());
-        return "User registered successfully";
+        userService.registerUser(userRegistrationDto);
+        logger.debug("User registered successfully: {}", userRegistrationDto.getUsername());
+        return ResponseEntity.ok("User registered successfully");
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> createAuthenticationToken(@RequestBody LoginRequestDto loginRequest) {
-        logger.debug("Login request for user: {}", loginRequest.getUsernameOrEmail());
-        try {
-            userService.authenticate(loginRequest);
+    public ResponseEntity<?> createAuthenticationToken(@RequestBody UserLoginDto userLoginDto) {
+        logger.debug("Login request for user: {}", userLoginDto.getUsernameOrEmail());
 
-            final UserDetails userDetails = userService.loadUserByUsername(loginRequest.getUsernameOrEmail());
+        try {
+            userService.authenticate(userLoginDto);
+
+            final UserDetails userDetails = userService.loadUserByUsername(userLoginDto.getUsernameOrEmail());
             final String token = jwtTokenUtil.generateToken(userDetails.getUsername());
 
-            logger.debug("Login successful for user: {}", loginRequest.getUsernameOrEmail());
+            logger.debug("Login successful for user: {}", userLoginDto.getUsernameOrEmail());
             return ResponseEntity.ok(new JwtResponse(token, "Login successful"));
         } catch (Exception e) {
             if (e.getMessage().equals("INVALID_CREDENTIALS")) {
-                logger.debug("Invalid credentials for user: {}", loginRequest.getUsernameOrEmail());
+                logger.debug("Invalid credentials for user: {}", userLoginDto.getUsernameOrEmail());
                 return ResponseEntity.status(401).body("Invalid credentials");
             }
-            logger.error("Login error for user: {}", loginRequest.getUsernameOrEmail(), e);
+            logger.error("Login error for user: {}", userLoginDto.getUsernameOrEmail(), e);
             return ResponseEntity.status(500).body("An error occurred during login");
         }
     }
