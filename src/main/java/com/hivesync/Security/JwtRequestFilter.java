@@ -37,7 +37,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         // Skip the login endpoint
-        if ("/api/login".equals(request.getRequestURI())) {
+        if ("/hivesync/login".equals(request.getRequestURI())) {
             chain.doFilter(request, response);
             return;
         }

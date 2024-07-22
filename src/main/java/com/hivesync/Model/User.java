@@ -6,9 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Entity
 @Data
@@ -50,7 +50,7 @@ public class User {
     private String phoneNumber;
 
     private LocalDate joinedDate;
-    
+
     private LocalDateTime createdTimestamp = LocalDateTime.now();
 
     private LocalDateTime updatedTimestamp;
@@ -61,12 +61,23 @@ public class User {
 
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
     private boolean accountNonLocked = true;
-    
+
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
     private boolean accountNonExpired = true;
-    
+
     @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT TRUE")
     private boolean credentialsNonExpired = true;
 
     private boolean enabled = true;
+
+    @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
+    @Enumerated(EnumType.STRING)
+    private Set<Role> roles;
+
+    @Column(name = "last_role_update_timestamp")
+    private LocalDateTime lastRoleUpdateTimestamp;
+
+    @Column(name = "last_role_updated_by")
+    private String lastRoleUpdatedBy;
 }

@@ -1,9 +1,11 @@
 package com.hivesync.Service;
 
+import com.hivesync.Model.Role;
 import com.hivesync.Model.User;
 import com.hivesync.Model.UserLoginDto;
 import com.hivesync.Model.UserRegistrationDto;
 import com.hivesync.Repository.UserRepository;
+import com.hivesync.Response.ApiResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Service
 public class UserService implements UserDetailsService {
@@ -50,10 +53,12 @@ public class UserService implements UserDetailsService {
         user.setFirstName(registrationRequest.getFirstName());
         user.setLastName(registrationRequest.getLastName());
         user.setCreatedTimestamp(LocalDateTime.now());
+        user.setRoles(Set.of(Role.USER));
 
         userRepository.save(user);
         logger.debug("User registered successfully: {}", registrationRequest.getUsername());
     }
+
     public boolean usernameExists(String username) {
         return userRepository.existsByUsernameOrEmail(username, null);
     }
@@ -61,6 +66,7 @@ public class UserService implements UserDetailsService {
     public boolean emailExists(String email) {
         return userRepository.existsByUsernameOrEmail(null, email);
     }
+
     @Transactional
     public void updateLastLogin(String username, String ipAddress) {
         logger.debug("Updating last login for user: {}", username);
@@ -80,7 +86,7 @@ public class UserService implements UserDetailsService {
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUsername())
                 .password(user.getPassword())
-                .roles("USER")
+                .roles(user.getRoles().stream().map(Role::name).toArray(String[]::new))
                 .accountLocked(!user.isAccountNonLocked())
                 .accountExpired(!user.isAccountNonExpired())
                 .credentialsExpired(!user.isCredentialsNonExpired())
@@ -97,5 +103,24 @@ public class UserService implements UserDetailsService {
             logger.error("Authentication failed for user: {}", loginRequest.getUsernameOrEmail());
             throw new Exception("INVALID_CREDENTIALS", e);
         }
+    }
+
+    @Transactional
+    public ApiResponse updateUserRole(String usernameOrEmail, Role newRole, String updatedBy) {
+        User user = userRepository.findByUsernameOrEmail(usernameOrEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Check if the user is already assigned the role
+        if (user.getRoles().contains(newRole)) {
+            return new ApiResponse(false, "User already has this role");
+        }
+
+        user.getRoles().add(newRole);
+        user.setLastRoleUpdateTimestamp(LocalDateTime.now());
+        user.setLastRoleUpdatedBy(updatedBy);
+        userRepository.save(user);
+
+        logger.debug("User role updated: User={}, NewRole={}, UpdatedBy={}", usernameOrEmail, newRole, updatedBy);
+        return new ApiResponse(true, "User role updated successfully");
     }
 }
